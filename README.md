@@ -10,7 +10,7 @@ below (under _Failure Output_). This can be made to succeed by removing one
 pair of modules, in this case using `build-5` and `service-5` as the example,
 from the `modules` directory. See the _Success Output_ heading for that output.
 
-This depends on <https://github.com/nillium/dummy-redis>, which absolutely
+This depends on <https://github.com/nilium/dummy-redis>, which absolutely
 should not be used for anything outside of this test project (because it's
 bad). Its sole purpose is to reproduce the errors I'm getting below.
 
