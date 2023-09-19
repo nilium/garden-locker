@@ -1,0 +1,47 @@
+---
+apiVersion: garden.io/v0
+kind: Project
+
+name: lock-test
+
+defaultEnvironment: "rancher"
+
+environments:
+  # Docker Desktop
+  - name: desktop
+    defaultNamespace: "sandbox"
+    production: false
+    variables:
+      context: docker-desktop
+      ingressController: "nginx"
+
+  # Rancher Desktop
+  - name: rancher
+    defaultNamespace: "sandbox"
+    production: false
+    variables:
+      context: rancher-desktop
+
+  # Colima
+  - name: colima
+    defaultNamespace: "sandbox"
+    production: false
+    variables:
+      context: colima
+
+providers:
+  - name: local-kubernetes
+    context: ${var.context}
+    environments:
+      - desktop
+      - rancher
+      - colima
+    namespace:
+      name: ${environment.namespace}
+    setupIngressController: ${var.ingressController || "false"}
+
+dotIgnoreFile: .gitignore
+
+scan:
+  include:
+    - modules/**/*

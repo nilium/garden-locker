@@ -1,0 +1,38 @@
+---
+apiVersion: garden.io/v0
+kind: Module
+type: exec
+name: build-1
+
+repositoryUrl: 'ssh://git@github.com/nilium/dummy-redis#main'
+
+include:
+  - Dockerfile
+  - Makefile
+
+exclude:
+  - .helmignore
+  - templates/**/*
+  - Chart.yml
+  - values.yaml
+
+build:
+  command: [make, docker-build, NAME=service-1]
+
+---
+apiVersion: garden.io/v0
+kind: Module
+type: container
+name: build-1-image
+
+build:
+  dependencies:
+    - name: build-1
+
+include: [Dockerfile]
+dockerfile: Dockerfile
+allowPublish: false
+
+buildArgs:
+  SERVICE_NAME: service-1
+  BUILD: ${modules.build-1.version}

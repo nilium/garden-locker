@@ -1,0 +1,21 @@
+---
+apiVersion: garden.io/v0
+kind: Module
+type: helm
+name: service-1
+
+repositoryUrl: 'ssh://git@github.com/nilium/dummy-redis#main'
+allowPublish: false
+releaseName: service-1
+namespace: ${environment.namespace}
+
+serviceResource:
+  containerName: redis
+  kind: StatefulSet
+  name: service-1
+
+values:
+  image:
+    pullPolicy: IfNotPresent
+    repository: ${modules.build-1-image.outputs.deployment-image-name}
+    tag: ${modules.build-1.version}

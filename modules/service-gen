@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# Usage: service-gen <service-name> [build-name]
+#
+# Generates a service-name directory with a module pointing to dummy-redis.
+# If a build-name is provided, it also generates a build-name directory with a
+# module also pointing to dummy-redis to reproduce a semi-weird exec process
+# needed to accommodate some unusual build processes we have.
+
+set -eu
+
+name="$1"
+build="${2-}"
+
+mkdir -p "$name"
+(
+cd "$name"
+
+(
+cat <<EOF
+---
+apiVersion: garden.io/v0
+kind: Module
+type: helm
+name: $name
+
+repositoryUrl: 'ssh://git@github.com/nilium/dummy-redis#main'
+allowPublish: false
+releaseName: $name
+namespace: \${environment.namespace}
+
+serviceResource:
+  containerName: redis
+  kind: StatefulSet
+  name: $name
+
+values:
+  image:
+    pullPolicy: IfNotPresent
+EOF
+
+# Reproduce the hack for our image builds being rather weird:
+if [[ -n "$build" ]]; then
+  cat <<EOF
+    repository: \${modules.${build}-image.outputs.deployment-image-name}
+    tag: \${modules.${build}.version}
+EOF
+fi
+) >garden.yaml
+
+)
+
+if [[ -z "$build" ]]; then
+  exit 0
+fi
+
+mkdir -p "$build"
+(
+cd "$build"
+cat <<EOF >garden.yaml
+---
+apiVersion: garden.io/v0
+kind: Module
+type: exec
+name: $build
+
+repositoryUrl: 'ssh://git@github.com/nilium/dummy-redis#main'
+
+include:
+  - Dockerfile
+  - Makefile
+
+exclude:
+  - .helmignore
+  - templates/**/*
+  - Chart.yml
+  - values.yaml
+
+build:
+  command: [make, docker-build, NAME=${name}]
+
+---
+apiVersion: garden.io/v0
+kind: Module
+type: container
+name: ${build}-image
+
+build:
+  dependencies:
+    - name: ${build}
+
+include: [Dockerfile]
+dockerfile: Dockerfile
+allowPublish: false
+
+buildArgs:
+  SERVICE_NAME: ${name}
+  BUILD: \${modules.${build}.version}
+EOF
+
+cat <<'EOF' >Dockerfile
+ARG SERVICE_NAME
+
+FROM ${SERVICE_NAME}-final:latest
+ARG BUILD
+ENV LOCAL_BUILD=${BUILD}
+EOF
+)
